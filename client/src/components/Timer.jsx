@@ -217,6 +217,15 @@ export default function Timer() {
               </div>
             )}
 
+            <button onClick={() => { setShowPopover(false); openStartDialog(); }} style={{
+              width: '100%', padding: '12px 18px', border: 'none', borderBottom: '1px solid var(--line)',
+              background: 'var(--blue-100)', color: 'var(--blue-600)', fontWeight: 700, fontSize: 13,
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8
+            }}>
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M5 3.5v17l15-8.5z" /></svg>
+              Start new timer
+            </button>
+
             {savedEntries.length > 0 ? (
               <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                 {savedEntries.map((e, i) => (
