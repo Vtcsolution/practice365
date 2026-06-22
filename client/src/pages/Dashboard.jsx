@@ -6,6 +6,83 @@ import api from '../api/axios';
 const RANGE_TARGETS = { today: 1.9, week: 9.5, month: 38, year: 456 };
 const RANGE_LABELS = { today: 'Today', week: 'This Week', month: 'This Month', year: 'This Year' };
 
+function fmtMoney(n) {
+  if (n == null) return '—';
+  return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function fmtAxis(n) {
+  if (n >= 1000) return '$' + (n / 1000).toLocaleString('en-US', { minimumFractionDigits: n >= 10000 ? 0 : 1, maximumFractionDigits: n >= 10000 ? 0 : 1 }) + 'K';
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function BarChart({ title, actual, expected, target }) {
+  const max = Math.max(actual, expected, target, 1) * 1.15;
+  const h = (v) => Math.max((v / max) * 130, 0);
+  const mid = max / 2;
+  return (
+    <div className="card dash-bar-card">
+      <h3 className="dash-bar-title">{title}</h3>
+      <div className="dash-bar-labels">
+        <span>{fmtAxis(max)}</span>
+        <span>{fmtAxis(mid)}</span>
+        <span>$0.00</span>
+      </div>
+      <svg viewBox="0 0 160 170" preserveAspectRatio="xMidYMid meet" className="dash-bar-svg">
+        <line x1="30" y1="10" x2="150" y2="10" stroke="var(--line)" strokeWidth="0.5" />
+        <line x1="30" y1="75" x2="150" y2="75" stroke="var(--line)" strokeWidth="0.5" />
+        <line x1="30" y1="140" x2="150" y2="140" stroke="var(--line)" strokeWidth="0.5" />
+        <rect x="40" y={140 - h(actual)} width="24" height={h(actual)} fill="var(--blue-600)" rx="3" />
+        <rect x="72" y={140 - h(expected)} width="24" height={h(expected)} fill="var(--blue-500)" rx="3" />
+        <rect x="104" y={140 - h(target)} width="24" height={h(target)} fill="var(--navy-800)" rx="3" />
+        <text x="52" y="158" textAnchor="middle" className="dash-bar-label">Actual</text>
+        <text x="84" y="158" textAnchor="middle" className="dash-bar-label">Expected</text>
+        <text x="116" y="158" textAnchor="middle" className="dash-bar-label">Target</text>
+      </svg>
+    </div>
+  );
+}
+
+function AnnualChart({ data, targetMonthly }) {
+  if (!data || !data.length) return null;
+  const max = Math.max(...data.map(d => d.actual), targetMonthly, 1) * 1.15;
+  const w = 500, h = 180, px = 50, py = 10;
+  const cw = w - px - 10, ch = h - py - 25;
+  const sx = (i) => px + (i / (data.length - 1 || 1)) * cw;
+  const sy = (v) => py + ch - (v / max) * ch;
+  const path = data.map((d, i) => `${i === 0 ? 'M' : 'L'}${sx(i).toFixed(1)},${sy(d.actual).toFixed(1)}`).join(' ');
+  const tgtY = sy(targetMonthly);
+
+  return (
+    <div className="card" style={{ padding: '24px 20px' }}>
+      <h3 style={{ fontSize: 16, fontWeight: 800, textAlign: 'center', margin: '0 0 8px' }}>Detailed Annual Report</h3>
+      <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginBottom: 16 }}>
+        <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 14, height: 10, background: 'var(--navy-800)', borderRadius: 2 }} /> Target
+        </span>
+        <span style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 14, height: 10, background: 'var(--blue-600)', borderRadius: 2 }} /> Actual
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%' }} preserveAspectRatio="xMidYMid meet">
+        <text x={px - 6} y={py + 4} textAnchor="end" fontSize="9" fill="var(--ink-400)">{fmtAxis(max)}</text>
+        <text x={px - 6} y={py + ch / 2 + 3} textAnchor="end" fontSize="9" fill="var(--ink-400)">{fmtAxis(max / 2)}</text>
+        <text x={px - 6} y={py + ch + 4} textAnchor="end" fontSize="9" fill="var(--ink-400)">$0</text>
+        <line x1={px} y1={py} x2={px + cw} y2={py} stroke="var(--line)" strokeWidth="0.5" />
+        <line x1={px} y1={py + ch / 2} x2={px + cw} y2={py + ch / 2} stroke="var(--line)" strokeWidth="0.5" />
+        <line x1={px} y1={py + ch} x2={px + cw} y2={py + ch} stroke="var(--line)" strokeWidth="0.5" />
+        <line x1={px} y1={tgtY} x2={px + cw} y2={tgtY} stroke="var(--navy-800)" strokeWidth="1.5" strokeDasharray="5,4" opacity="0.5" />
+        <path d={path} fill="none" stroke="var(--blue-600)" strokeWidth="2.5" strokeLinejoin="round" />
+        {data.map((d, i) => (
+          <g key={i}>
+            <circle cx={sx(i)} cy={sy(d.actual)} r="4" fill="var(--blue-600)" stroke="#fff" strokeWidth="2" />
+            <text x={sx(i)} y={h - 4} textAnchor="middle" fontSize="8" fill="var(--ink-400)">{d.month}</text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user, canViewBilling } = useAuth();
   const navigate = useNavigate();
@@ -23,7 +100,20 @@ export default function Dashboard() {
   const target = RANGE_TARGETS[range];
   const pct = Math.min(hours / target, 1);
   const circ = 2 * Math.PI * 82;
-  const fmtMoney = (n) => '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 0 });
+
+  const rate = stats?.defaultBillingRate || 250;
+  const revActual = stats?.revenue?.[range] || 0;
+  const revTarget = target * rate;
+  const now = new Date();
+  const dayFrac = (now.getHours() * 60 + now.getMinutes()) / (8 * 60);
+  const periodFracs = {
+    today: Math.max(dayFrac, 0.1),
+    week: Math.max((now.getDay() || 7) / 5, 0.2),
+    month: Math.max(now.getDate() / 22, 0.1),
+    year: Math.max((Math.floor((now - new Date(now.getFullYear(), 0, 1)) / 86400000)) / 260, 0.1)
+  };
+  const revExpected = revActual / periodFracs[range];
+  const monthlyTarget = rate * (RANGE_TARGETS.month || 38);
 
   if (loading) return <div className="empty-state"><p>Loading dashboard...</p></div>;
 
@@ -35,12 +125,12 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* ========== PERSONAL DASHBOARD ========== */}
       {activeTab === 'personal' && (
         <>
+          {/* Today's Agenda */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <h2 className="section-title" style={{ margin: 0 }}>Today's Agenda</h2>
-            <button className="stat-link" onClick={() => setAgendaHidden(!agendaHidden)}>{agendaHidden ? 'Show' : 'Hide'}</button>
+            <button className="stat-link" onClick={() => setAgendaHidden(!agendaHidden)}>( {agendaHidden ? 'Show' : 'Hide'} )</button>
           </div>
           {!agendaHidden && (
             <div className="agenda-grid">
@@ -48,22 +138,25 @@ export default function Dashboard() {
                 <div className="agenda-stat">
                   <span className="agenda-num">{stats?.overdueDeadlines || 0}</span>
                   <span className="agenda-label">Tasks Due Today</span>
+                  <button className="agenda-add" onClick={() => navigate('/tasks')}>+</button>
                 </div>
-                <div className="agenda-msg">{stats?.todayEvents?.length ? stats.todayEvents.map(e => e.title).join(', ') : 'No tasks due today'}</div>
+                <div className="agenda-msg">{stats?.overdueDeadlines ? `${stats.overdueDeadlines} task(s) need attention` : 'You have no tasks due today'}</div>
               </div>
               <div className="agenda-card">
                 <div className="agenda-stat">
                   <span className="agenda-num">{stats?.todayEvents?.length || 0}</span>
                   <span className="agenda-label">Calendar Events</span>
+                  <button className="agenda-add" onClick={() => navigate('/calendar')}>+</button>
                 </div>
-                <div className="agenda-msg">{stats?.todayEvents?.length ? stats.todayEvents.map(e => e.title).join(', ') : 'No events scheduled'}</div>
+                <div className="agenda-msg">{stats?.todayEvents?.length ? stats.todayEvents.map(e => e.title).join(', ') : 'You have no events scheduled for today'}</div>
               </div>
             </div>
           )}
 
+          {/* Hourly + Billing row */}
           <div className="metrics-row">
             <div>
-              <h2 className="section-title"><span className="help">?</span>Hourly Metrics for {user?.firstName} {user?.lastName}</h2>
+              <h2 className="section-title">Hourly Metrics for {user?.firstName} {user?.lastName} <span className="help">?</span></h2>
               <div className="card billable-card">
                 <h3 className="billable-head">Billable Hours Target</h3>
                 <div className="range-tabs">
@@ -83,35 +176,67 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
+                <div style={{ textAlign: 'center', marginTop: 8 }}>
+                  <button className="stat-link" onClick={() => navigate('/billing')}>Personal performance settings</button>
+                </div>
               </div>
             </div>
 
             {canViewBilling && (
               <div>
-                <h2 className="section-title"><span className="help">?</span>Billing Metrics for Firm</h2>
+                <h2 className="section-title">Billing Metrics for Firm <span className="help">?</span></h2>
                 <div className="billing-grid">
                   {[
-                    { title: 'Draft Bills', val: stats?.billing?.draft?.count || 0, cls: 'zero' },
+                    { title: 'Draft Bills', val: stats?.billing?.draft?.count || 0 },
                     { title: 'Total in Draft', val: stats?.billing?.draft?.total ? fmtMoney(stats.billing.draft.total) : '—', isMoney: true },
-                    { title: 'Unpaid Bills', val: stats?.billing?.unpaid?.count || 0, cls: 'zero' },
+                    { title: 'Unpaid Bills', val: stats?.billing?.unpaid?.count || 0 },
                     { title: 'Total in Unpaid', val: stats?.billing?.unpaid?.total ? fmtMoney(stats.billing.unpaid.total) : '—', isMoney: true },
                     { title: 'Overdue Bills', val: stats?.billing?.overdue?.count || 0, cls: 'danger' },
                     { title: 'Total in Overdue', val: stats?.billing?.overdue?.total ? fmtMoney(stats.billing.overdue.total) : '—', isMoney: true, cls: 'danger' },
                   ].map((item, i) => (
                     <div key={i} className={`stat-card ${item.isMoney ? 'total' : ''}`} onClick={() => navigate('/billing')} style={{ cursor: 'pointer' }}>
                       <span className="stat-title">{item.title}</span>
-                      <span className={item.isMoney ? (item.val === '—' ? 'total-dash' : `stat-value ${item.cls || ''}`) : `stat-value ${item.cls || ''}`}>{item.val}</span>
-                      <div className="stat-foot"><button className="view-link">View →</button></div>
+                      <span className={`stat-value ${item.cls || ''}`}>{item.val}</span>
+                      {!item.isMoney && item.val === 0 && item.title === 'Draft Bills' && (
+                        <div style={{ fontSize: 12, color: 'var(--ink-400)', marginTop: 4 }}>(<button className="stat-link" onClick={(e) => { e.stopPropagation(); navigate('/billing'); }}>Create new bills</button>)</div>
+                      )}
+                      {!item.isMoney && item.title === 'Unpaid Bills' && (
+                        <div style={{ fontSize: 11, color: 'var(--ink-400)', marginTop: 4 }}>(Approve from <button className="stat-link" onClick={(e) => { e.stopPropagation(); navigate('/billing'); }}>Draft</button> or <button className="stat-link" onClick={(e) => { e.stopPropagation(); navigate('/billing'); }}>Pending Approval</button>)</div>
+                      )}
+                      <div className="stat-foot"><button className="view-link" onClick={(e) => { e.stopPropagation(); navigate('/billing'); }}>View</button></div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </div>
+
+          {/* Financial Metrics - Bar Charts */}
+          {canViewBilling && (
+            <>
+              <h2 className="section-title" style={{ marginTop: 32 }}>Financial Metrics for {user?.firstName} {user?.lastName} <span className="help">?</span></h2>
+              <div className="financial-grid">
+                {Object.entries(RANGE_LABELS).map(([key, label]) => {
+                  const act = stats?.revenue?.[key] || 0;
+                  const tgt = RANGE_TARGETS[key] * rate;
+                  const frac = periodFracs[key];
+                  const exp = act / frac;
+                  return <BarChart key={key} title={label} actual={act} expected={exp} target={tgt} />;
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Annual Report */}
+          {canViewBilling && stats?.revenue?.monthly && (
+            <div style={{ marginTop: 28 }}>
+              <AnnualChart data={stats.revenue.monthly} targetMonthly={monthlyTarget} />
+            </div>
+          )}
         </>
       )}
 
-      {/* ========== FIRM DASHBOARD ========== */}
+      {/* FIRM DASHBOARD */}
       {activeTab === 'firm' && (
         <>
           <div className="stats-cards-row">
@@ -121,7 +246,6 @@ export default function Dashboard() {
             <div className="kpi-card"><div className="kpi-label">Collected (YTD)</div><div className="kpi-value green">{fmtMoney(stats?.billing?.collectedYTD)}</div></div>
           </div>
 
-          {/* Overdue Deadlines */}
           {stats?.overdueDeadlinesList?.length > 0 && (
             <DashSection title="Overdue Deadlines" color="var(--red-600)" count={stats.overdueDeadlinesList.length}>
               {stats.overdueDeadlinesList.map(d => (
@@ -134,7 +258,6 @@ export default function Dashboard() {
             </DashSection>
           )}
 
-          {/* Overdue Invoices */}
           {stats?.overdueInvoicesList?.length > 0 && (
             <DashSection title="Overdue Invoices" color="var(--red-600)" count={stats.overdueInvoicesList.length}>
               {stats.overdueInvoicesList.map(inv => (
@@ -147,7 +270,6 @@ export default function Dashboard() {
             </DashSection>
           )}
 
-          {/* Retainer Alerts */}
           {stats?.retainerAlerts?.length > 0 && (
             <DashSection title="Retainer Not Collected" color="var(--amber-600)" count={stats.retainerAlerts.length}>
               {stats.retainerAlerts.map(m => (
@@ -160,7 +282,6 @@ export default function Dashboard() {
             </DashSection>
           )}
 
-          {/* Inactive Matters */}
           {stats?.inactiveMatters?.length > 0 && (
             <DashSection title={`No Activity in ${stats.inactivityDays}+ Days`} color="var(--ink-400)" count={stats.inactiveMatters.length}>
               {stats.inactiveMatters.map(m => (
@@ -173,7 +294,6 @@ export default function Dashboard() {
             </DashSection>
           )}
 
-          {/* Pending Leads */}
           {stats?.pendingLeadsList?.length > 0 && (
             <DashSection title="Pending Leads" color="var(--blue-600)" count={stats.pendingLeadsList.length}>
               {stats.pendingLeadsList.map(l => (
@@ -192,10 +312,10 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* ========== FIRM FEED ========== */}
+      {/* FIRM FEED */}
       {activeTab === 'feed' && (
         <>
-          <h2 className="section-title"><span className="help">?</span>Recent Firm Activity</h2>
+          <h2 className="section-title">Recent Firm Activity <span className="help">?</span></h2>
           {stats?.recentActivity?.length > 0 ? (
             <div className="card" style={{ padding: '6px 0' }}>
               {stats.recentActivity.map((a, i) => (
@@ -207,9 +327,7 @@ export default function Dashboard() {
                   </span>
                   <div className="feed-body">
                     <div className="feed-text"><b>{a.title}</b>{a.description ? ` — ${a.description.substring(0, 120)}` : ''}</div>
-                    <div className="feed-time">
-                      {a.createdBy?.firstName} {a.createdBy?.lastName} · {a.matter?.name || ''} · {new Date(a.createdAt).toLocaleString()}
-                    </div>
+                    <div className="feed-time">{a.createdBy?.firstName} {a.createdBy?.lastName} · {a.matter?.name || ''} · {new Date(a.createdAt).toLocaleString()}</div>
                   </div>
                 </div>
               ))}

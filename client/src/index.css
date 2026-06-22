@@ -204,6 +204,16 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .stat-card.total { justify-content: space-between; }
 .total-dash { font-size: 19px; font-weight: 800; color: var(--ink-400); }
 
+/* ===== Financial bar charts ===== */
+.financial-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.dash-bar-card { padding: 20px 12px 10px; text-align: center; position: relative; }
+.dash-bar-title { font-size: 16px; font-weight: 800; margin: 0 0 6px; }
+.dash-bar-svg { width: 100%; max-height: 170px; }
+.dash-bar-label { font-size: 8px; fill: var(--ink-400); font-family: inherit; }
+.dash-bar-labels { position: absolute; left: 10px; top: 50px; display: flex; flex-direction: column; justify-content: space-between; height: 120px; font-size: 10px; color: var(--ink-400); font-weight: 600; pointer-events: none; }
+.agenda-add { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--blue-600); color: var(--blue-600); display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; background: transparent; font-size: 16px; font-weight: 700; line-height: 1; margin-left: 4px; transition: .15s all; }
+.agenda-add:hover { background: var(--blue-600); color: #fff; }
+
 /* ===== Feed ===== */
 .feed-item { display: flex; gap: 14px; padding: 16px 22px; border-bottom: 1px solid var(--line); }
 .feed-item:last-child { border-bottom: none; }
@@ -440,6 +450,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 
   /* Billing stats grid → single column */
   .billing-grid { grid-template-columns: 1fr; }
+  .financial-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .dash-bar-labels { display: none; }
 
   /* Modal: reduce padding on phones */
   .modal { padding: 20px 16px; }
@@ -471,6 +483,12 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 
   /* Summary grid: full width on tiny screens */
   .summary-grid { grid-template-columns: 1fr; }
+  .financial-grid { grid-template-columns: 1fr; }
+  .metrics-row { grid-template-columns: 1fr; }
+  .agenda-grid { grid-template-columns: 1fr; }
+  .agenda-card { grid-template-columns: 1fr; }
+  .agenda-stat { border-right: none; border-bottom: 1px solid var(--line); padding: 16px; }
+  .agenda-msg { padding: 12px 16px; }
 
   /* Timer: hide history button too, keep only start/stop */
   .timer { gap: 6px; padding: 6px; }
